@@ -1,10 +1,13 @@
 # dwa_bcr_bot
 bcr_bot simulated in gazebo ros2, using kinect depth camera and getting depth images from it in pointcloud2 images message format, downsampling the data to see obstacles in realtime.
+
 #starting the simulation
 launch the gazebo.launch from the workspace in termianl using the command
 ros2 launch bcr_bot gazebo.launch
+
 #open rviz2 using the command
 rviz2
+
 #start the python file "point_cloud_processor.py" in vs code or another terminal
 python3 point_cloud_processor.py
 
