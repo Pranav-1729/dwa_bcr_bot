@@ -13,6 +13,9 @@ launch the gazebo.launch from the workspace in terminal using the command
 
 # optimising the simulation
 ~check the frame name to kinect_camera
+
 ~if you can't see any pointclouds, check that pointcloud2 data is added on the left menu of rviz, if not then on the lower left ADD and click pointcloud2
+
 ~add the topic name /grouped_points
+
 ~for more points, in the python file increase the value of call_size
