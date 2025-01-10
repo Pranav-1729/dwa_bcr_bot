@@ -14,7 +14,6 @@ from geometry_msgs.msg import Pose
 
 k = 25 #factor by which you have to randomize the 3d points to project in 2d 
 goal = np.array([10.0,10.0])
-obstacles = np.array([])
 
 
 # Robot parameters
@@ -71,7 +70,7 @@ class obstacle_vel_node(Node):
         #     self.odom_callback,
         #     10)
         self.publisher1 = self.create_publisher(PointCloud2, '/obstacles', 10)
-        self.publisher2 = self.create_publisher(Twist, '/cmd_vel',10)
+        self.publisher2 = self.create_publisher(Twist, '/bcr_bot/cmd_vel',10)
         self.get_logger().info("Obstacle and Vel node started.") 
         self.i_position =[0.0,0.0,0.0] 
       
@@ -85,34 +84,10 @@ class obstacle_vel_node(Node):
                 #       self.get_logger().info(f'Could not get transform: {e}')
 
 
-                # pose = i_position
-
-        # try:
-        #     transform = self.tf_buffer.lookup_transform(
-        #         'odom', 
-        #         'base_footprint', 
-        #         rclpy.time.Time()
-        #         )
-
-        #     # Convert to numpy array format expected by DWA
-        #     x = transform.transform.translation.x
-        #     y = transform.transform.translation.y
-        #     q = transform.transform.rotation
-        #     # Convert quaternion to yaw angle
-        #     theta = np.arctan2(2.0 * (q.w * q.z + q.x * q.y),
-        #                      1.0 - 2.0 * (q.y * q.y + q.z * q.z))
-            
-        #     posn =[x, y, theta]
-        #     print("posn****************************************",posn)
-        #     return posn
-        # except Exception as e:
-        #     self.get_logger().error(f"Failed to look posn: {e}")
-        #     return None
-
-
-    def obstacle_callback(self,msg,obstacles=obstacles):
-        obstacles = self.calc_obstacle(msg)
-        self.publisher1.publish(obstacles)
+    def obstacle_callback(self,msg):
+        obstacle_msg,obstacles = self.calc_obstacle(msg)
+        self.publisher1.publish(obstacle_msg)
+        self.get_logger().info("Obstacles detected and obstacle msg publishedddddddd")
 
         linear,angular = self.get_current_pose_from_tf()
         print("pose",angular, linear)
@@ -146,6 +121,11 @@ class obstacle_vel_node(Node):
         points = np.random.choice(points, points.shape[0] //k)
         points['y'] = 0.24
 
+        #add obstacles to the obstacles array
+        obstacle_array = [[p[0], p[1], p[2]] for p in pc2.read_points(msg, skip_nans=True, field_names=("x", "y", "z"))]
+        global obstacles
+        obstacles = np.array(obstacle_array)
+
         header =msg.header
         fields = [
         PointField(name='x', offset=0, datatype=PointField.FLOAT32, count=1),
@@ -155,9 +135,9 @@ class obstacle_vel_node(Node):
         
         dtype = [('x', np.float32), ('y', np.float32), ('z', np.float32)]
         structured_points = np.array(points, dtype=dtype)
-        obatacle_cloud_msg = pc2.create_cloud(header, fields, structured_points)          
+        obstacle_cloud_msg = pc2.create_cloud(header, fields, structured_points)          
         # self.publisher.publish(grouped_cloud_msg)
-        return obatacle_cloud_msg
+        return obstacle_cloud_msg,obstacles
 
 def euler_from_quaternion(quaternion):
     """
@@ -248,7 +228,7 @@ def predict_trajectory(posn, v, w):
 
 #this funcn calculates the total cost of the trajectory
 #v is current speed of the robot
-def calculate_cost(trajectory,obstacles=obstacles):
+def calculate_cost(trajectory,obstacles):
         v = trajectory[0,3]
         w = trajectory[0,4]
         #obstacles is an array of obstacles, each obstacle is a 2d point
@@ -284,9 +264,9 @@ def calculate_cost(trajectory,obstacles=obstacles):
         return total_cost
 
 
-def best_trajectory(trajectories,obstacles=obstacles):
+def best_trajectory(trajectories,obstacles):
 
-        all_costs = np.array([calculate_cost(traj) for traj in trajectories])
+        all_costs = np.array([calculate_cost(traj,obstacles) for traj in trajectories])
         
         min_index = np.argmin(all_costs)     # Index of the minimum value
         best_trajectory = trajectories[min_index]
@@ -297,7 +277,7 @@ def best_trajectory(trajectories,obstacles=obstacles):
         return best_attrib
 
 
-def velocity_command(posn,obstacles=obstacles): 
+def velocity_command(posn,obstacles): 
         # Generate all possible trajectories
         trajectories = [predict_trajectory(posn, v, w) for v, w in velocity_pairs]
         # Find the best trajectory
