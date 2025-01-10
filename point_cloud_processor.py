@@ -53,7 +53,7 @@ class PointCloudProcessor(Node):
         # Calculate the distance of each point from the origin (0, 0, 0)
         xyz_points = np.vstack((points['x'], points['y'], points['z'])).T
         distances = np.linalg.norm(xyz_points, axis=1)
-        filtered_points = points[distances <= radius]
+        filtered_points = points[(distances <= radius) & ((points['y'] > 0.25) | (points['y'] < 0.23))]
         ###self.get_logger().info(f"Filtered points within {radius}m: {len(filtered_points)}")
         return filtered_points
 
